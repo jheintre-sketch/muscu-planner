@@ -1,0 +1,1840 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="description" content="Planificateur d'entraînement de musculation - Créez vos programmes personnalisés">
+  <title>Planificateur d'Entrainement</title>
+  
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#1e293b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Muscu Planner">
+  
+  <!-- Icône -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💪</text></svg>">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      margin: 0; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overscroll-behavior: none;
+    }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  
+  <!-- React & Babel -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const { Settings, Calendar, Dumbbell, Target, ChevronRight, ChevronLeft, Plus, Trash2, Star } = lucide;
+    
+
+const WorkoutPlannerApp = () => {
+  const [step, setStep] = useState('config');
+  const [splitType, setSplitType] = useState('upper-lower');
+  const [planningSubStep, setPlanningSubStep] = useState('types');
+  
+  // Gestion des profils
+  const [profiles, setProfiles] = useState([]);
+  const [currentProfile, setCurrentProfile] = useState(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showCreateProfile, setShowCreateProfile] = useState(false);
+  const [newProfileName, setNewProfileName] = useState('');
+  const [profileToDelete, setProfileToDelete] = useState(null);
+  const profileMenuRef = React.useRef(null);
+  
+  // Gestion des programmes
+  const [programs, setPrograms] = useState([]);
+  const [currentProgram, setCurrentProgram] = useState(null);
+  const [showProgramMenu, setShowProgramMenu] = useState(false);
+  const [programName, setProgramName] = useState('');
+  const [programToDelete, setProgramToDelete] = useState(null);
+  const programMenuRef = React.useRef(null);
+  
+  const [muscles, setMuscles] = useState({
+    available: [
+      { name: 'Pectoraux', split: 'upper', category: 'push' },
+      { name: 'Dos', split: 'upper', category: 'pull' },
+      { name: 'Epaules', split: 'upper', category: 'push' },
+      { name: 'Biceps', split: 'upper', category: 'pull' },
+      { name: 'Triceps', split: 'upper', category: 'push' },
+      { name: 'Abdos', split: 'upper', category: 'push' },
+      { name: 'Quadriceps', split: 'lower', category: 'legs' },
+      { name: 'Ischio', split: 'lower', category: 'legs' },
+      { name: 'Fessiers', split: 'lower', category: 'legs' },
+      { name: 'Mollet', split: 'lower', category: 'legs' },
+      { name: 'Adducteurs', split: 'lower', category: 'legs' }
+    ],
+    maintenance: [],
+    modere: [],
+    priorite: []
+  });
+  
+  const [exercises, setExercises] = useState([
+    { id: 1, name: 'Mollet machine', muscle: 'Mollet', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 2, name: 'Crunch Machine', muscle: 'Abdos', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 3, name: 'Releve jambe', muscle: 'Abdos', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 4, name: 'Hip trust', muscle: 'Fessiers', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 5, name: 'Adducteur Machine', muscle: 'Adducteurs', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 6, name: 'Hack Squat', muscle: 'Quadriceps', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 7, name: 'Leg Extension', muscle: 'Quadriceps', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 8, name: 'Leg Curl', muscle: 'Ischio', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} },
+    { id: 9, name: 'Dev Incline', muscle: 'Pectoraux', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 10, name: 'Dev Decline', muscle: 'Pectoraux', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 11, name: 'Elev frontale', muscle: 'Epaules', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 12, name: 'Elev laterale', muscle: 'Epaules', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 13, name: 'Dev haltere', muscle: 'Epaules', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 14, name: 'Traction', muscle: 'Dos', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 15, name: 'Tirage poulie', muscle: 'Dos', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 16, name: 'Ext poulie haute', muscle: 'Triceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 17, name: 'Dips banc', muscle: 'Triceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 18, name: 'Ext Couche', muscle: 'Triceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 19, name: 'Curl Poulie', muscle: 'Biceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 20, name: 'Curl Pupitre', muscle: 'Biceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 21, name: 'Curl Marteau', muscle: 'Biceps', muscle2: null, split: 'upper', series: 0, bonusSeriesByDay: {} },
+    { id: 22, name: 'Presse', muscle: 'Quadriceps', muscle2: null, split: 'lower', series: 0, bonusSeriesByDay: {} }
+  ]);
+  
+  const [weekPlan, setWeekPlan] = useState({
+    lundi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    mardi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    mercredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    jeudi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    vendredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    samedi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+    dimanche: { type: null, muscles: [], exercises: [], priorityExercises: [] }
+  });
+  
+  const [newExercise, setNewExercise] = useState({ name: '', muscle: '', muscle2: '', split: 'upper' });
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [editingExercise, setEditingExercise] = useState(null);
+  const exportMenuRef = React.useRef(null);
+  const importProfileInputRef = React.useRef(null);
+
+  const days = ['lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche'];
+
+  // Charger les profils au démarrage
+  useEffect(() => {
+    const savedProfiles = localStorage.getItem('workoutProfiles');
+    const savedCurrentProfile = localStorage.getItem('currentProfile');
+    
+    if (savedProfiles) {
+      try {
+        const parsed = JSON.parse(savedProfiles);
+        setProfiles(parsed);
+        
+        if (savedCurrentProfile) {
+          const profile = parsed.find(p => p.id === savedCurrentProfile);
+          if (profile) {
+            loadProfile(profile);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur chargement profils:', error);
+      }
+    }
+  }, []);
+
+  // Charger les programmes du profil actuel
+  useEffect(() => {
+    if (currentProfile) {
+      const savedPrograms = localStorage.getItem(`programs_${currentProfile.id}`);
+      if (savedPrograms) {
+        try {
+          const parsed = JSON.parse(savedPrograms);
+          setPrograms(parsed);
+          
+          // Charger le dernier programme utilisé
+          const lastProgramId = localStorage.getItem(`currentProgram_${currentProfile.id}`);
+          if (lastProgramId) {
+            const prog = parsed.find(p => p.id === lastProgramId);
+            if (prog) {
+              loadProgram2(prog);
+            }
+          }
+        } catch (error) {
+          console.error('Erreur chargement programmes:', error);
+        }
+      } else {
+        setPrograms([]);
+        setCurrentProgram(null);
+      }
+    }
+  }, [currentProfile]);
+
+  // Charger les exercices sauvegardés au démarrage
+  useEffect(() => {
+    const savedExercises = localStorage.getItem('workoutExercises');
+    if (savedExercises) {
+      try {
+        const parsed = JSON.parse(savedExercises);
+        setExercises(parsed);
+      } catch (error) {
+        console.error('Erreur lors du chargement des exercices:', error);
+      }
+    }
+  }, []);
+
+  // Sauvegarder les exercices à chaque modification
+  useEffect(() => {
+    localStorage.setItem('workoutExercises', JSON.stringify(exercises));
+  }, [exercises]);
+
+  // Sauvegarder le programme actuel automatiquement
+  useEffect(() => {
+    if (currentProfile && currentProgram) {
+      saveCurrentProgram();
+    }
+  }, [splitType, muscles, weekPlan]);
+
+  useEffect(() => {
+    calculateSeries();
+  }, [weekPlan, muscles]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target)) {
+        setShowExportMenu(false);
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+      if (programMenuRef.current && !programMenuRef.current.contains(event.target)) {
+        setShowProgramMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const getMusclePriority = (muscleName) => {
+    if (muscles.priorite.find(m => m.name === muscleName)) return 'priorite';
+    if (muscles.modere.find(m => m.name === muscleName)) return 'modere';
+    if (muscles.maintenance.find(m => m.name === muscleName)) return 'maintenance';
+    return null;
+  };
+
+  // Fonctions de gestion des profils
+  const createProfile = () => {
+    if (!newProfileName.trim()) return;
+    
+    const newProfile = {
+      id: Date.now().toString(),
+      name: newProfileName.trim(),
+      splitType: 'upper-lower',
+      muscles: {
+        available: [
+          { name: 'Pectoraux', split: 'upper', category: 'push' },
+          { name: 'Dos', split: 'upper', category: 'pull' },
+          { name: 'Epaules', split: 'upper', category: 'push' },
+          { name: 'Biceps', split: 'upper', category: 'pull' },
+          { name: 'Triceps', split: 'upper', category: 'push' },
+          { name: 'Abdos', split: 'upper', category: 'push' },
+          { name: 'Quadriceps', split: 'lower', category: 'legs' },
+          { name: 'Ischio', split: 'lower', category: 'legs' },
+          { name: 'Fessiers', split: 'lower', category: 'legs' },
+          { name: 'Mollet', split: 'lower', category: 'legs' },
+          { name: 'Adducteurs', split: 'lower', category: 'legs' }
+        ],
+        maintenance: [],
+        modere: [],
+        priorite: []
+      },
+      weekPlan: {
+        lundi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mardi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mercredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        jeudi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        vendredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        samedi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        dimanche: { type: null, muscles: [], exercises: [], priorityExercises: [] }
+      },
+      createdAt: new Date().toISOString()
+    };
+    
+    const updatedProfiles = [...profiles, newProfile];
+    setProfiles(updatedProfiles);
+    localStorage.setItem('workoutProfiles', JSON.stringify(updatedProfiles));
+    
+    loadProfile(newProfile);
+    setNewProfileName('');
+    setShowCreateProfile(false);
+    setShowProfileMenu(false);
+  };
+
+  const loadProfile = (profile) => {
+    setCurrentProfile(profile);
+    setSplitType(profile.splitType);
+    setMuscles(profile.muscles);
+    setWeekPlan(profile.weekPlan);
+    localStorage.setItem('currentProfile', profile.id);
+  };
+
+  const saveCurrentProfile = () => {
+    if (!currentProfile) return;
+    
+    const updatedProfile = {
+      ...currentProfile,
+      splitType,
+      muscles,
+      weekPlan,
+      lastModified: new Date().toISOString()
+    };
+    
+    const updatedProfiles = profiles.map(p => 
+      p.id === currentProfile.id ? updatedProfile : p
+    );
+    
+    setProfiles(updatedProfiles);
+    setCurrentProfile(updatedProfile);
+    localStorage.setItem('workoutProfiles', JSON.stringify(updatedProfiles));
+  };
+
+  const deleteProfile = (profileId) => {
+    setProfileToDelete(profileId);
+  };
+
+  const confirmDeleteProfile = () => {
+    if (!profileToDelete) return;
+    
+    const updatedProfiles = profiles.filter(p => p.id !== profileToDelete);
+    setProfiles(updatedProfiles);
+    localStorage.setItem('workoutProfiles', JSON.stringify(updatedProfiles));
+    
+    // Si on supprime le profil actuel
+    if (currentProfile?.id === profileToDelete) {
+      setCurrentProfile(null);
+      localStorage.removeItem('currentProfile');
+      
+      // Réinitialiser les données
+      setSplitType('upper-lower');
+      setMuscles({
+        available: [
+          { name: 'Pectoraux', split: 'upper', category: 'push' },
+          { name: 'Dos', split: 'upper', category: 'pull' },
+          { name: 'Epaules', split: 'upper', category: 'push' },
+          { name: 'Biceps', split: 'upper', category: 'pull' },
+          { name: 'Triceps', split: 'upper', category: 'push' },
+          { name: 'Abdos', split: 'upper', category: 'push' },
+          { name: 'Quadriceps', split: 'lower', category: 'legs' },
+          { name: 'Ischio', split: 'lower', category: 'legs' },
+          { name: 'Fessiers', split: 'lower', category: 'legs' },
+          { name: 'Mollet', split: 'lower', category: 'legs' },
+          { name: 'Adducteurs', split: 'lower', category: 'legs' }
+        ],
+        maintenance: [],
+        modere: [],
+        priorite: []
+      });
+      setWeekPlan({
+        lundi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mardi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mercredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        jeudi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        vendredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        samedi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        dimanche: { type: null, muscles: [], exercises: [], priorityExercises: [] }
+      });
+    }
+    
+    setProfileToDelete(null);
+    setShowProfileMenu(false);
+  };
+
+  const cancelDeleteProfile = () => {
+    setProfileToDelete(null);
+  };
+
+  // Fonctions de gestion des programmes
+  const createProgram = () => {
+    if (!currentProfile) {
+      alert('Veuillez d\'abord sélectionner un profil');
+      return;
+    }
+    if (!programName.trim()) {
+      alert('Veuillez entrer un nom pour le programme');
+      return;
+    }
+    
+    const newProgram = {
+      id: Date.now().toString(),
+      name: programName.trim(),
+      profileId: currentProfile.id,
+      splitType: splitType,
+      muscles: {
+        available: [
+          { name: 'Pectoraux', split: 'upper', category: 'push' },
+          { name: 'Dos', split: 'upper', category: 'pull' },
+          { name: 'Epaules', split: 'upper', category: 'push' },
+          { name: 'Biceps', split: 'upper', category: 'pull' },
+          { name: 'Triceps', split: 'upper', category: 'push' },
+          { name: 'Abdos', split: 'upper', category: 'push' },
+          { name: 'Quadriceps', split: 'lower', category: 'legs' },
+          { name: 'Ischio', split: 'lower', category: 'legs' },
+          { name: 'Fessiers', split: 'lower', category: 'legs' },
+          { name: 'Mollet', split: 'lower', category: 'legs' },
+          { name: 'Adducteurs', split: 'lower', category: 'legs' }
+        ],
+        maintenance: [],
+        modere: [],
+        priorite: []
+      },
+      weekPlan: {
+        lundi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mardi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mercredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        jeudi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        vendredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        samedi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        dimanche: { type: null, muscles: [], exercises: [], priorityExercises: [] }
+      },
+      createdAt: new Date().toISOString()
+    };
+    
+    const updatedPrograms = [...programs, newProgram];
+    setPrograms(updatedPrograms);
+    localStorage.setItem(`programs_${currentProfile.id}`, JSON.stringify(updatedPrograms));
+    
+    loadProgram2(newProgram);
+    setProgramName('');
+    setStep('muscles');
+  };
+
+  const loadProgram2 = (program) => {
+    setCurrentProgram(program);
+    setSplitType(program.splitType);
+    setMuscles(program.muscles);
+    setWeekPlan(program.weekPlan);
+    setProgramName(program.name);
+    localStorage.setItem(`currentProgram_${currentProfile.id}`, program.id);
+  };
+
+  const saveCurrentProgram = () => {
+    if (!currentProfile || !currentProgram) return;
+    
+    // Ne pas sauvegarder si le nom est vide
+    const finalName = programName.trim() || currentProgram.name;
+    
+    const updatedProgram = {
+      ...currentProgram,
+      name: finalName,
+      splitType,
+      muscles,
+      weekPlan,
+      lastModified: new Date().toISOString()
+    };
+    
+    const updatedPrograms = programs.map(p => 
+      p.id === currentProgram.id ? updatedProgram : p
+    );
+    
+    setPrograms(updatedPrograms);
+    setCurrentProgram(updatedProgram);
+    localStorage.setItem(`programs_${currentProfile.id}`, JSON.stringify(updatedPrograms));
+  };
+
+  const deleteProgram = (programId) => {
+    setProgramToDelete(programId);
+  };
+
+  const confirmDeleteProgram = () => {
+    if (!programToDelete || !currentProfile) return;
+    
+    const updatedPrograms = programs.filter(p => p.id !== programToDelete);
+    setPrograms(updatedPrograms);
+    localStorage.setItem(`programs_${currentProfile.id}`, JSON.stringify(updatedPrograms));
+    
+    if (currentProgram?.id === programToDelete) {
+      setCurrentProgram(null);
+      setProgramName('');
+      localStorage.removeItem(`currentProgram_${currentProfile.id}`);
+      
+      // Réinitialiser
+      setSplitType('upper-lower');
+      setMuscles({
+        available: [
+          { name: 'Pectoraux', split: 'upper', category: 'push' },
+          { name: 'Dos', split: 'upper', category: 'pull' },
+          { name: 'Epaules', split: 'upper', category: 'push' },
+          { name: 'Biceps', split: 'upper', category: 'pull' },
+          { name: 'Triceps', split: 'upper', category: 'push' },
+          { name: 'Abdos', split: 'upper', category: 'push' },
+          { name: 'Quadriceps', split: 'lower', category: 'legs' },
+          { name: 'Ischio', split: 'lower', category: 'legs' },
+          { name: 'Fessiers', split: 'lower', category: 'legs' },
+          { name: 'Mollet', split: 'lower', category: 'legs' },
+          { name: 'Adducteurs', split: 'lower', category: 'legs' }
+        ],
+        maintenance: [],
+        modere: [],
+        priorite: []
+      });
+      setWeekPlan({
+        lundi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mardi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        mercredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        jeudi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        vendredi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        samedi: { type: null, muscles: [], exercises: [], priorityExercises: [] },
+        dimanche: { type: null, muscles: [], exercises: [], priorityExercises: [] }
+      });
+    }
+    
+    setProgramToDelete(null);
+    setShowProgramMenu(false);
+  };
+
+  const cancelDeleteProgram = () => {
+    setProgramToDelete(null);
+  };
+
+  // Export du profil actuel avec tous ses programmes
+  const exportCurrentProfile = () => {
+    if (!currentProfile) {
+      alert('Aucun profil sélectionné');
+      return;
+    }
+
+    const profileData = {
+      version: '2.0',
+      exportDate: new Date().toISOString(),
+      profile: currentProfile,
+      programs: programs,
+      exercises: exercises
+    };
+
+    const blob = new Blob([JSON.stringify(profileData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `${currentProfile.name}_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+    
+    alert(`✅ Profil "${currentProfile.name}" exporté avec ${programs.length} programme(s)`);
+  };
+
+  // Import d'un profil complet
+  const importProfile = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = JSON.parse(e.target.result);
+        
+        if (!data.profile || !data.programs) {
+          alert('❌ Fichier invalide');
+          return;
+        }
+
+        // Créer un nouveau profil avec un nouvel ID pour éviter les conflits
+        const newProfile = {
+          ...data.profile,
+          id: Date.now().toString(),
+          name: data.profile.name + ' (importé)'
+        };
+
+        // Mettre à jour les IDs des programmes
+        const importedPrograms = data.programs.map(prog => ({
+          ...prog,
+          id: Date.now().toString() + Math.random(),
+          profileId: newProfile.id
+        }));
+
+        // Sauvegarder le nouveau profil
+        const updatedProfiles = [...profiles, newProfile];
+        setProfiles(updatedProfiles);
+        localStorage.setItem('workoutProfiles', JSON.stringify(updatedProfiles));
+
+        // Sauvegarder les programmes du profil
+        localStorage.setItem(`programs_${newProfile.id}`, JSON.stringify(importedPrograms));
+
+        // Fusionner les exercices importés avec les existants
+        if (data.exercises) {
+          const existingExerciseNames = exercises.map(ex => ex.name.toLowerCase());
+          const newExercises = data.exercises.filter(ex => 
+            !existingExerciseNames.includes(ex.name.toLowerCase())
+          ).map(ex => ({
+            ...ex,
+            id: Date.now() + Math.random()
+          }));
+          
+          if (newExercises.length > 0) {
+            const mergedExercises = [...exercises, ...newExercises];
+            setExercises(mergedExercises);
+            localStorage.setItem('workoutExercises', JSON.stringify(mergedExercises));
+          }
+        }
+
+        // Charger le profil importé
+        loadProfile(newProfile);
+        setPrograms(importedPrograms);
+
+        alert(`✅ Profil "${newProfile.name}" importé avec succès!\n${importedPrograms.length} programme(s) restauré(s)`);
+        
+      } catch (error) {
+        console.error('Erreur import:', error);
+        alert('❌ Erreur lors de l\'import du fichier');
+      }
+    };
+    reader.readAsText(file);
+    
+    // Reset l'input pour permettre de réimporter le même fichier
+    event.target.value = '';
+  };
+
+  const getVolumeMid = (priority) => {
+    const volumes = { maintenance: 4, modere: 8, priorite: 16 };
+    return volumes[priority] || 0;
+  };
+
+  const calculateSeries = () => {
+    const newExercises = exercises.map(ex => {
+      const priority = getMusclePriority(ex.muscle);
+      if (!priority) return { ...ex, series: 0 };
+      const allMuscleExercises = exercises.filter(e => e.muscle === ex.muscle);
+      const usedExercises = allMuscleExercises.filter(e => Object.values(weekPlan).some(day => day.exercises.includes(e.id)));
+      if (!usedExercises.find(e => e.id === ex.id)) return { ...ex, series: 0 };
+      if (usedExercises.length === 0) return { ...ex, series: 0 };
+      const totalVolume = getVolumeMid(priority);
+      const exerciseOccurrences = {};
+      usedExercises.forEach(e => { exerciseOccurrences[e.id] = Object.values(weekPlan).filter(day => day.exercises.includes(e.id)).length; });
+      const totalOccurrences = Object.values(exerciseOccurrences).reduce((sum, count) => sum + count, 0);
+      const baseSeriesPerOccurrence = Math.min(4, Math.floor(totalVolume / totalOccurrences));
+      return { ...ex, series: baseSeriesPerOccurrence };
+    });
+    setExercises(newExercises);
+  };
+
+  const moveMuscle = (muscleName, toZone) => {
+    const newMuscles = { ...muscles };
+    ['available', 'maintenance', 'modere', 'priorite'].forEach(zone => { newMuscles[zone] = newMuscles[zone].filter(m => m.name !== muscleName); });
+    const muscle = [...muscles.available, ...muscles.maintenance, ...muscles.modere, ...muscles.priorite].find(m => m.name === muscleName);
+    if (muscle) newMuscles[toZone].push(muscle);
+    setMuscles(newMuscles);
+  };
+
+  const setDayType = (day, type) => {
+    // Ne pas pré-remplir les muscles - l'utilisateur doit les sélectionner manuellement
+    setWeekPlan(prev => ({ ...prev, [day]: { ...prev[day], type, muscles: [], exercises: [], priorityExercises: [] } }));
+  };
+
+  const toggleDayMuscle = (day, muscleName) => {
+    setWeekPlan(prev => {
+      const dayMuscles = prev[day].muscles;
+      const newMuscles = dayMuscles.includes(muscleName) ? dayMuscles.filter(m => m !== muscleName) : [...dayMuscles, muscleName];
+      return { ...prev, [day]: { ...prev[day], muscles: newMuscles } };
+    });
+  };
+
+  const toggleDayExercise = (day, exId) => {
+    setWeekPlan(prev => {
+      const dayExercises = prev[day].exercises;
+      const newExercises = dayExercises.includes(exId) ? dayExercises.filter(e => e !== exId) : [...dayExercises, exId];
+      return { ...prev, [day]: { ...prev[day], exercises: newExercises } };
+    });
+  };
+
+  const toggleDayExercisePriority = (day, exId) => {
+    setWeekPlan(prev => {
+      const priorityExercises = prev[day].priorityExercises || [];
+      const newPriorityExercises = priorityExercises.includes(exId) ? priorityExercises.filter(e => e !== exId) : [...priorityExercises, exId];
+      return { ...prev, [day]: { ...prev[day], priorityExercises: newPriorityExercises } };
+    });
+  };
+
+  const addExercise = () => {
+    if (newExercise.name && newExercise.muscle) {
+      const muscle = [...muscles.available, ...muscles.maintenance, ...muscles.modere, ...muscles.priorite].find(m => m.name === newExercise.muscle);
+      setExercises(prev => [...prev, { id: Date.now(), name: newExercise.name, muscle: newExercise.muscle, muscle2: newExercise.muscle2 || null, split: muscle ? muscle.split : newExercise.split, series: 0, bonusSeriesByDay: {} }]);
+      setNewExercise({ name: '', muscle: '', muscle2: '', split: 'upper' });
+    }
+  };
+
+  const startEditExercise = (exercise) => {
+    setEditingExercise({
+      id: exercise.id,
+      name: exercise.name,
+      muscle: exercise.muscle,
+      muscle2: exercise.muscle2 || '',
+      split: exercise.split
+    });
+  };
+
+  const saveEditExercise = () => {
+    if (editingExercise && editingExercise.name && editingExercise.muscle) {
+      setExercises(prev => prev.map(ex => {
+        if (ex.id === editingExercise.id) {
+          const muscle = [...muscles.available, ...muscles.maintenance, ...muscles.modere, ...muscles.priorite].find(m => m.name === editingExercise.muscle);
+          return {
+            ...ex,
+            name: editingExercise.name,
+            muscle: editingExercise.muscle,
+            muscle2: editingExercise.muscle2 || null,
+            split: muscle ? muscle.split : editingExercise.split
+          };
+        }
+        return ex;
+      }));
+      setEditingExercise(null);
+    }
+  };
+
+  const cancelEditExercise = () => {
+    setEditingExercise(null);
+  };
+
+  const adjustBonusSeries = (exId, day, change) => {
+    setExercises(prev => prev.map(ex => {
+      if (ex.id === exId) {
+        const currentBonus = ex.bonusSeriesByDay[day] || 0;
+        const newBonus = Math.max(0, currentBonus + change);
+        return { ...ex, bonusSeriesByDay: { ...ex.bonusSeriesByDay, [day]: newBonus } };
+      }
+      return ex;
+    }));
+  };
+
+  const resetBonusSeries = (exId, day) => {
+    setExercises(prev => prev.map(ex => {
+      if (ex.id === exId) {
+        const newBonusByDay = { ...ex.bonusSeriesByDay };
+        delete newBonusByDay[day];
+        return { ...ex, bonusSeriesByDay: newBonusByDay };
+      }
+      return ex;
+    }));
+  };
+
+  const deleteExercise = (id) => {
+    setExercises(prev => prev.filter(ex => ex.id !== id));
+    setWeekPlan(prev => {
+      const newPlan = { ...prev };
+      Object.keys(newPlan).forEach(day => {
+        newPlan[day] = { ...newPlan[day], exercises: newPlan[day].exercises.filter(e => e !== id), priorityExercises: newPlan[day].priorityExercises.filter(e => e !== id) };
+      });
+      return newPlan;
+    });
+  };
+
+  const goNext = () => {
+    if (step === 'config') setStep('muscles');
+    else if (step === 'muscles') { setStep('planning'); setPlanningSubStep('types'); }
+    else if (step === 'planning') {
+      if (planningSubStep === 'types') setPlanningSubStep('muscles');
+      else if (planningSubStep === 'muscles') setPlanningSubStep('exercises');
+      else if (planningSubStep === 'exercises') setPlanningSubStep('recap');
+    }
+  };
+
+  const goPrev = () => {
+    if (step === 'muscles') setStep('config');
+    else if (step === 'planning') {
+      if (planningSubStep === 'types') setStep('muscles');
+      else if (planningSubStep === 'muscles') setPlanningSubStep('types');
+      else if (planningSubStep === 'exercises') setPlanningSubStep('muscles');
+      else if (planningSubStep === 'recap') setPlanningSubStep('exercises');
+    }
+  };
+
+  const getSessionTypes = () => {
+    if (splitType === 'upper-lower') return ['upper', 'lower', 'rest'];
+    if (splitType === 'ppl') return ['push', 'pull', 'legs', 'rest'];
+    return ['chest', 'back', 'shoulders', 'arms', 'legs', 'rest'];
+  };
+
+  const getSessionTypeLabel = (type) => {
+    const labels = { upper: 'Upper', lower: 'Lower', push: 'Push', pull: 'Pull', legs: 'Jambes', chest: 'Pectoraux', back: 'Dos', shoulders: 'Épaules', arms: 'Bras', rest: 'Repos' };
+    return labels[type] || type;
+  };
+
+  const getAvailableMusclesForType = (type) => {
+    const allMuscles = [...muscles.maintenance, ...muscles.modere, ...muscles.priorite];
+    if (splitType === 'upper-lower') {
+      if (type === 'upper') return allMuscles.filter(m => m.split === 'upper');
+      if (type === 'lower') return allMuscles.filter(m => m.split === 'lower');
+    } else if (splitType === 'ppl') {
+      if (type === 'push') return allMuscles.filter(m => m.category === 'push');
+      if (type === 'pull') return allMuscles.filter(m => m.category === 'pull');
+      if (type === 'legs') return allMuscles.filter(m => m.category === 'legs');
+    }
+    return allMuscles;
+  };
+
+  const calculateTotalSeries = (muscle) => {
+    const muscleExercises = exercises.filter(ex => ex.muscle === muscle.name);
+    const priority = getMusclePriority(muscle.name);
+    const targetVolume = getVolumeMid(priority);
+    let totalSeriesWeek = 0;
+    muscleExercises.forEach(ex => {
+      const frequency = days.filter(day => weekPlan[day].exercises.includes(ex.id)).length;
+      totalSeriesWeek += ex.series * frequency + Object.values(ex.bonusSeriesByDay).reduce((sum, val) => sum + val, 0);
+    });
+    return { totalSeriesWeek, targetVolume };
+  };
+
+  const calculateExerciseSeries = (ex, day) => {
+    const manualBonus = ex.bonusSeriesByDay[day] || 0;
+    return ex.series + manualBonus;
+  };
+
+  const generateProgramText = () => {
+    let text = `📋 PROGRAMME D'ENTRAÎNEMENT\n`;
+    text += `${'='.repeat(50)}\n\n`;
+    text += `Split: ${splitType === 'upper-lower' ? 'Upper/Lower' : splitType === 'ppl' ? 'Push Pull Legs' : 'Bro Split'}\n`;
+    text += `Date: ${new Date().toLocaleDateString('fr-FR')}\n\n`;
+    
+    text += `${'='.repeat(50)}\n`;
+    text += `MUSCLES ET VOLUMES CIBLES\n`;
+    text += `${'='.repeat(50)}\n\n`;
+    
+    [...muscles.maintenance, ...muscles.modere, ...muscles.priorite].forEach(muscle => {
+      const result = calculateTotalSeries(muscle);
+      const priority = getMusclePriority(muscle.name);
+      text += `• ${muscle.name}: ${result.totalSeriesWeek}/${result.targetVolume} séries (${priority})\n`;
+    });
+    
+    text += `\n${'='.repeat(50)}\n`;
+    text += `PLANNING HEBDOMADAIRE\n`;
+    text += `${'='.repeat(50)}\n\n`;
+    
+    days.forEach(day => {
+      const dayData = weekPlan[day];
+      text += `🏋️  ${day.toUpperCase()}\n`;
+      text += `${'-'.repeat(50)}\n`;
+      
+      if (dayData.type === 'rest' || !dayData.type) {
+        text += `   Repos\n\n`;
+        return;
+      }
+      
+      text += `   Type: ${getSessionTypeLabel(dayData.type)}\n\n`;
+      
+      const dayExercises = dayData.exercises.map(exId => exercises.find(e => e.id === exId)).filter(ex => ex);
+      const exercisesByMuscle = {};
+      dayExercises.forEach(ex => {
+        if (!exercisesByMuscle[ex.muscle]) exercisesByMuscle[ex.muscle] = [];
+        exercisesByMuscle[ex.muscle].push(ex);
+      });
+      
+      Object.entries(exercisesByMuscle).forEach(([muscleName, muscleExs]) => {
+        text += `   ${muscleName}:\n`;
+        muscleExs.forEach(ex => {
+          const totalSeries = calculateExerciseSeries(ex, day);
+          const isPriority = dayData.priorityExercises?.includes(ex.id);
+          text += `      ${isPriority ? '⭐ ' : ''}• ${ex.name} - ${totalSeries} séries\n`;
+        });
+        text += `\n`;
+      });
+    });
+    
+    return text;
+  };
+
+  const exportToText = () => {
+    try {
+      const text = generateProgramText();
+      const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `programme-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setShowExportMenu(false);
+    } catch (error) {
+      alert('Erreur export texte: ' + error.message);
+    }
+  };
+
+  const exportToHTML = () => {
+    try {
+      let html = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Programme d'Entraînement - ${currentProfile ? currentProfile.name : 'Mon Programme'}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+      padding: 30px 20px;
+      color: #fff;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #334155;
+    }
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+      color: #60a5fa;
+    }
+    .header .info {
+      color: #94a3b8;
+      font-size: 14px;
+    }
+    .week-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .day-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    }
+    .day-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #334155;
+    }
+    .day-name {
+      font-size: 20px;
+      font-weight: bold;
+      text-transform: capitalize;
+      color: #fff;
+    }
+    .day-type {
+      background: #3b82f6;
+      color: white;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .rest-day {
+      color: #64748b;
+      font-style: italic;
+      text-align: center;
+      padding: 40px 0;
+    }
+    .muscle-group {
+      margin-bottom: 15px;
+    }
+    .muscle-title {
+      color: #60a5fa;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    .exercise-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #0f172a;
+      border-radius: 6px;
+      margin-bottom: 6px;
+    }
+    .exercise-name {
+      color: #e2e8f0;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .priority-star {
+      color: #fbbf24;
+      font-size: 14px;
+    }
+    .exercise-series {
+      color: #22c55e;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .bonus-series {
+      color: #fb923c;
+      font-size: 12px;
+    }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 2px solid #334155;
+      color: #64748b;
+      font-size: 12px;
+    }
+    @media print {
+      body { background: white; padding: 20px; }
+      .day-card { 
+        page-break-inside: avoid;
+        border: 2px solid #334155;
+      }
+      .header h1 { color: #2563eb; }
+      .exercise-series { color: #16a34a; }
+      .muscle-title { color: #2563eb; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📋 Programme d'Entraînement</h1>
+      <div class="info">
+        ${currentProfile ? `Profil: ${currentProfile.name} • ` : ''}
+        Split: ${splitType === 'upper-lower' ? 'Upper/Lower' : splitType === 'ppl' ? 'Push Pull Legs' : 'Bro Split'} • 
+        Généré le ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}
+      </div>
+    </div>
+    
+    <div class="week-grid">`;
+      
+      days.forEach(day => {
+        const dayData = weekPlan[day];
+        html += `
+      <div class="day-card">
+        <div class="day-header">
+          <div class="day-name">${day.charAt(0).toUpperCase() + day.slice(1)}</div>`;
+        
+        if (dayData.type && dayData.type !== 'rest') {
+          html += `<div class="day-type">${getSessionTypeLabel(dayData.type)}</div>`;
+        }
+        
+        html += `</div>`;
+        
+        if (!dayData.type || dayData.type === 'rest') {
+          html += `<div class="rest-day">Jour de repos</div>`;
+        } else if (dayData.exercises && dayData.exercises.length > 0) {
+          const dayExercises = dayData.exercises.map(exId => exercises.find(e => e.id === exId)).filter(ex => ex);
+          const exercisesByMuscle = {};
+          
+          dayExercises.forEach(ex => {
+            if (!exercisesByMuscle[ex.muscle]) exercisesByMuscle[ex.muscle] = [];
+            exercisesByMuscle[ex.muscle].push(ex);
+          });
+          
+          Object.entries(exercisesByMuscle).forEach(([muscleName, muscleExs]) => {
+            html += `<div class="muscle-group">
+              <div class="muscle-title">${muscleName}</div>`;
+            
+            muscleExs.forEach(ex => {
+              const totalSeries = calculateExerciseSeries(ex, day);
+              const manualBonus = ex.bonusSeriesByDay[day] || 0;
+              const isPriority = dayData.priorityExercises?.includes(ex.id);
+              
+              html += `<div class="exercise-item">
+                <div class="exercise-name">
+                  ${isPriority ? '<span class="priority-star">⭐</span>' : ''}
+                  ${ex.name}
+                </div>
+                <div class="exercise-series">
+                  ${totalSeries}s${manualBonus > 0 ? ` <span class="bonus-series">+${manualBonus}</span>` : ''}
+                </div>
+              </div>`;
+            });
+            
+            html += `</div>`;
+          });
+        } else {
+          html += `<div class="rest-day">Aucun exercice planifié</div>`;
+        }
+        
+        html += `</div>`;
+      });
+      
+      html += `
+    </div>
+    
+    <div class="footer">
+      Programme créé avec Workout Planner • Pour imprimer en PDF: Ctrl/Cmd + P
+    </div>
+  </div>
+</body>
+</html>`;
+      
+      const blob = new Blob([html], { type: 'text/html' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `programme-${currentProfile ? currentProfile.name.toLowerCase().replace(/\s/g, '-') : 'entrainement'}-${new Date().toISOString().split('T')[0]}.html`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setShowExportMenu(false);
+    } catch (error) {
+      alert('Erreur export HTML: ' + error.message);
+    }
+  };
+
+  const exportToCalendar = () => {
+    try {
+      const now = new Date();
+      let ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Workout//FR\n`;
+      
+      const dayMap = { dimanche: 0, lundi: 1, mardi: 2, mercredi: 3, jeudi: 4, vendredi: 5, samedi: 6 };
+      const dayCode = ['SU','MO','TU','WE','TH','FR','SA'];
+      
+      days.forEach(day => {
+        const d = weekPlan[day];
+        if (!d.type || d.type === 'rest') return;
+        
+        const dayIdx = dayMap[day];
+        const eventDate = new Date(now);
+        eventDate.setDate(eventDate.getDate() + ((dayIdx - eventDate.getDay() + 7) % 7));
+        eventDate.setHours(9, 0, 0, 0);
+        
+        const end = new Date(eventDate);
+        end.setHours(10, 30, 0, 0);
+        
+        const fmt = (dt) => dt.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+        
+        ics += `BEGIN:VEVENT\nUID:${day}-${Date.now()}@workout\n`;
+        ics += `DTSTART:${fmt(eventDate)}\nDTEND:${fmt(end)}\n`;
+        ics += `SUMMARY:${getSessionTypeLabel(d.type)}\n`;
+        ics += `RRULE:FREQ=WEEKLY;BYDAY=${dayCode[dayIdx]}\n`;
+        ics += `END:VEVENT\n`;
+      });
+      
+      ics += `END:VCALENDAR`;
+      
+      const blob = new Blob([ics], { type: 'text/calendar' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'programme.ics';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+      setShowExportMenu(false);
+    } catch (error) {
+      alert('Erreur export calendrier: ' + error.message);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-2 sm:p-4">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          {/* Sélecteurs de profils et programmes */}
+          <div className="flex items-center gap-2">
+            {/* Sélecteur de profils */}
+            <div className="relative">
+              <button 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-2 bg-slate-800 text-white px-3 sm:px-4 py-2 rounded-lg border border-slate-700 hover:bg-slate-700"
+              >
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center font-bold">
+                {currentProfile ? currentProfile.name.charAt(0).toUpperCase() : '?'}
+              </div>
+              <span className="text-sm sm:text-base font-medium hidden sm:inline">
+                {currentProfile ? currentProfile.name : 'Aucun profil'}
+              </span>
+              <ChevronRight className={`w-4 h-4 transition-transform ${showProfileMenu ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {showProfileMenu && (
+              <div ref={profileMenuRef} className="absolute left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="p-3 border-b border-slate-700">
+                  <h3 className="text-white font-bold text-sm">Mes Profils</h3>
+                </div>
+                
+                <div className="max-h-64 overflow-y-auto">
+                  {profiles.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-sm">
+                      Aucun profil créé
+                    </div>
+                  ) : (
+                    profiles.map(profile => (
+                      <div 
+                        key={profile.id}
+                        className={`flex items-center justify-between p-3 hover:bg-slate-700 ${currentProfile?.id === profile.id ? 'bg-slate-700' : ''}`}
+                      >
+                        <button
+                          onClick={() => { loadProfile(profile); setShowProfileMenu(false); }}
+                          className="flex items-center gap-2 flex-1 text-left"
+                        >
+                          <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
+                            {profile.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-white text-sm">{profile.name}</span>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteProfile(profile.id); }}
+                          className="text-red-400 hover:text-red-300 p-1 hover:bg-red-900/20 rounded transition-colors"
+                          title="Supprimer ce profil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="p-3 border-t border-slate-700">
+                  {showCreateProfile ? (
+                    <div className="space-y-2">
+                      <input
+                        type="text"
+                        placeholder="Nom du profil"
+                        value={newProfileName}
+                        onChange={(e) => setNewProfileName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && createProfile()}
+                        className="w-full bg-slate-700 text-white p-2 rounded border border-slate-600 text-sm"
+                        autoFocus
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          onClick={createProfile}
+                          className="flex-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700"
+                        >
+                          Créer
+                        </button>
+                        <button
+                          onClick={() => { setShowCreateProfile(false); setNewProfileName(''); }}
+                          className="flex-1 bg-slate-600 text-white px-3 py-1.5 rounded text-sm hover:bg-slate-500"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <button
+                        onClick={() => setShowCreateProfile(true)}
+                        className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 flex items-center justify-center gap-2"
+                      >
+                        <Plus className="w-4 h-4" /> Nouveau profil
+                      </button>
+                      
+                      {currentProfile && (
+                        <>
+                          <button
+                            onClick={() => { exportCurrentProfile(); setShowProfileMenu(false); }}
+                            className="w-full bg-green-600 text-white px-3 py-2 rounded text-sm hover:bg-green-700 flex items-center justify-center gap-2"
+                          >
+                            💾 Exporter ce profil
+                          </button>
+                          <button
+                            onClick={() => { importProfileInputRef.current?.click(); setShowProfileMenu(false); }}
+                            className="w-full bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700 flex items-center justify-center gap-2"
+                          >
+                            📂 Importer un profil
+                          </button>
+                          <input 
+                            ref={importProfileInputRef} 
+                            type="file" 
+                            accept=".json" 
+                            onChange={importProfile} 
+                            className="hidden" 
+                          />
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Sélecteur de programmes */}
+          <div className="relative">
+            <button 
+              onClick={() => setShowProgramMenu(!showProgramMenu)}
+              className="flex items-center gap-2 bg-slate-800 text-white px-3 sm:px-4 py-2 rounded-lg border border-slate-700 hover:bg-slate-700"
+              disabled={!currentProfile}
+            >
+              <Calendar className="w-4 h-4 flex-shrink-0" />
+              <span className="text-sm sm:text-base font-medium truncate max-w-[120px] sm:max-w-[200px]">
+                {currentProgram ? (currentProgram.name || (currentProgram.splitType === 'upper-lower' ? 'Upper/Lower' : currentProgram.splitType === 'ppl' ? 'PPL' : 'Bro Split')) : 'Aucun programme'}
+              </span>
+              <ChevronRight className={`w-4 h-4 flex-shrink-0 transition-transform ${showProgramMenu ? 'rotate-90' : ''}`} />
+            </button>
+            
+            {showProgramMenu && currentProfile && (
+              <div ref={programMenuRef} className="absolute left-0 mt-2 w-64 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                <div className="p-3 border-b border-slate-700">
+                  <h3 className="text-white font-bold text-sm">Mes Programmes</h3>
+                </div>
+                
+                <div className="max-h-64 overflow-y-auto">
+                  {programs.length === 0 ? (
+                    <div className="p-4 text-center text-slate-400 text-sm">
+                      Aucun programme créé
+                    </div>
+                  ) : (
+                    programs.map(program => (
+                      <div 
+                        key={program.id}
+                        className={`flex items-center justify-between p-3 hover:bg-slate-700 ${currentProgram?.id === program.id ? 'bg-slate-700' : ''}`}
+                      >
+                        <button
+                          onClick={() => { loadProgram2(program); setShowProgramMenu(false); }}
+                          className="flex items-center gap-2 flex-1 text-left"
+                        >
+                          <Calendar className="w-4 h-4 text-blue-400" />
+                          <div>
+                            <span className="text-white text-sm block">
+                              {program.name || (program.splitType === 'upper-lower' ? 'Upper/Lower' : program.splitType === 'ppl' ? 'PPL' : 'Bro Split')}
+                            </span>
+                            <span className="text-xs text-slate-400">
+                              {program.splitType === 'upper-lower' ? 'Upper/Lower' : program.splitType === 'ppl' ? 'PPL' : 'Bro Split'}
+                            </span>
+                          </div>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteProgram(program.id); }}
+                          className="text-red-400 hover:text-red-300 p-1 hover:bg-red-900/20 rounded transition-colors"
+                          title="Supprimer ce programme"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+                
+                <div className="p-3 border-t border-slate-700">
+                  <button
+                    onClick={() => { 
+                      setCurrentProgram(null); 
+                      setProgramName(''); 
+                      setStep('config'); 
+                      setShowProgramMenu(false); 
+                    }}
+                    className="w-full bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" /> Nouveau programme
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+          <h1 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2">
+            <Dumbbell className="w-6 h-6 sm:w-8 sm:h-8" />
+            {currentProgram ? (currentProgram.name || (currentProgram.splitType === 'upper-lower' ? 'Upper/Lower' : currentProgram.splitType === 'ppl' ? 'PPL' : 'Bro Split')) : "Planificateur d'entrainement"}
+          </h1>
+          
+          <div className="w-32"></div> {/* Spacer pour centrer le titre */}
+        </div>
+
+        {/* Modal de confirmation de suppression de profil */}
+        {profileToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl">
+              <h3 className="text-xl font-bold text-white mb-4">Supprimer le profil ?</h3>
+              <p className="text-slate-300 mb-6">
+                Êtes-vous sûr de vouloir supprimer le profil "<span className="font-semibold text-white">{profiles.find(p => p.id === profileToDelete)?.name}</span>" ? 
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelDeleteProfile}
+                  className="flex-1 bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-500 font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteProfile}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de confirmation de suppression de programme */}
+        {programToDelete && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 max-w-md w-full shadow-2xl">
+              <h3 className="text-xl font-bold text-white mb-4">Supprimer le programme ?</h3>
+              <p className="text-slate-300 mb-6">
+                Êtes-vous sûr de vouloir supprimer le programme "<span className="font-semibold text-white">{programs.find(p => p.id === programToDelete)?.name}</span>" ? 
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={cancelDeleteProgram}
+                  className="flex-1 bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-500 font-medium"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteProgram}
+                  className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        <div className="bg-slate-800 rounded-xl p-2 sm:p-3 mb-2 sm:mb-4 border border-slate-700">
+          <div className="flex flex-wrap gap-1 sm:gap-2 justify-between items-center">
+            <div className="flex flex-wrap gap-1 sm:gap-2">
+              <button onClick={() => setStep('config')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${step === 'config' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <Settings className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />Config
+              </button>
+              <button onClick={() => setStep('muscles')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${step === 'muscles' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <Target className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />Muscles
+              </button>
+              <button onClick={() => { setStep('planning'); setPlanningSubStep('types'); }} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${step === 'planning' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <Calendar className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />Planning
+              </button>
+              <button onClick={() => setStep('exercises')} className={`px-2 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium ${step === 'exercises' ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300'}`}>
+                <Plus className="w-3 h-3 sm:w-4 sm:h-4 inline mr-1" />Exercices
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {step === 'config' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-slate-800 rounded-xl p-4 sm:p-6 border border-slate-700">
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 sm:mb-4">Configuration</h2>
+              <div className="space-y-3 sm:space-y-4">
+                {/* Nom du programme */}
+                <div>
+                  <label className="text-white font-semibold mb-2 block text-sm sm:text-base">Nom du programme</label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Force, Hypertrophie, Débutant..."
+                    value={programName}
+                    onChange={(e) => setProgramName(e.target.value)}
+                    onBlur={() => {
+                      if (currentProfile && currentProgram && programName.trim()) {
+                        saveCurrentProgram();
+                      }
+                    }}
+                    className="w-full bg-slate-700 text-white p-3 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none text-sm sm:text-base"
+                    disabled={!currentProfile}
+                  />
+                  {!currentProfile && (
+                    <p className="text-xs text-slate-400 mt-1">Veuillez d'abord sélectionner un profil</p>
+                  )}
+                </div>
+
+                {/* Type de split */}
+                <div>
+                  <label className="text-white font-semibold mb-2 block text-sm sm:text-base">Type de split</label>
+                  {[{ value: 'upper-lower', label: 'Upper / Lower' }, { value: 'ppl', label: 'Push Pull Legs' }, { value: 'bro', label: 'Bro Split' }].map(type => (
+                    <button key={type.value} onClick={() => setSplitType(type.value)} className={`w-full p-2 sm:p-3 mb-2 rounded-lg font-medium text-sm sm:text-base ${splitType === type.value ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                      {type.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              {currentProgram ? (
+                <button onClick={goNext} className="ml-auto bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 font-medium hover:bg-blue-700 text-sm sm:text-base">
+                  Suivant <ChevronRight className="w-4 h-4" />
+                </button>
+              ) : (
+                <button onClick={createProgram} disabled={!currentProfile || !programName.trim()} className="ml-auto bg-green-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 font-medium hover:bg-green-700 disabled:bg-slate-600 disabled:cursor-not-allowed text-sm sm:text-base">
+                  <Plus className="w-4 h-4" /> Créer le programme
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 'muscles' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Développement musculaire</h2>
+            </div>
+            <div className="flex gap-2 sm:gap-4 overflow-x-auto pb-4">
+              <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700 flex-shrink-0 w-56 sm:w-64">
+                <h3 className="text-base sm:text-lg font-bold text-white mb-2">Disponibles</h3>
+                <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto">
+                  {muscles.available.map(m => (
+                    <div key={m.name} className="bg-slate-700 rounded-lg p-2 sm:p-3">
+                      <span className="text-white text-xs sm:text-sm font-medium block mb-2 text-center">{m.name}</span>
+                      <div className="flex flex-col gap-1">
+                        <button onClick={() => moveMuscle(m.name, 'maintenance')} className="bg-green-600 text-white text-xs px-2 py-1 rounded hover:bg-green-700">Maintenance</button>
+                        <button onClick={() => moveMuscle(m.name, 'modere')} className="bg-yellow-600 text-white text-xs px-2 py-1 rounded hover:bg-yellow-700">Modéré</button>
+                        <button onClick={() => moveMuscle(m.name, 'priorite')} className="bg-red-600 text-white text-xs px-2 py-1 rounded hover:bg-red-700">Priorité</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {[
+                { key: 'maintenance', label: 'Maintenance', range: '4 séries', color: 'border-green-500' }, 
+                { key: 'modere', label: 'Modéré', range: '8 séries', color: 'border-orange-500' }, 
+                { key: 'priorite', label: 'Priorité', range: '16 séries', color: 'border-red-500' }
+              ].map(priority => (
+                <div key={priority.key} className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700 flex-shrink-0 w-56 sm:w-64">
+                  <h3 className="text-base sm:text-lg font-bold text-white">{priority.label}</h3>
+                  <p className="text-xs sm:text-sm mb-2 text-slate-400">{priority.range}</p>
+                  <div className="space-y-2 max-h-80 sm:max-h-96 overflow-y-auto">
+                    {muscles[priority.key].map(m => (
+                      <div key={m.name} className={`bg-slate-700 rounded-lg p-2 sm:p-3 border-2 ${priority.color}`}>
+                        <span className="text-white text-xs sm:text-sm font-medium block mb-2 text-center">{m.name}</span>
+                        <button onClick={() => moveMuscle(m.name, 'available')} className="w-full bg-slate-600 text-white text-xs px-2 py-1 rounded hover:bg-slate-500">Retirer</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              <button onClick={goPrev} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm sm:text-base">
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <button onClick={goNext} className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm sm:text-base">
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'planning' && planningSubStep === 'types' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Étape 1 : Type de séance</h2>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {days.map(day => (
+                <div key={day} className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700 flex-shrink-0 w-32 sm:w-40">
+                  <h3 className="text-white font-bold mb-2 sm:mb-3 capitalize text-center text-sm sm:text-base">{day}</h3>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    {getSessionTypes().map(type => (
+                      <button key={type} onClick={() => setDayType(day, type)} className={`w-full p-1.5 sm:p-2 rounded text-xs sm:text-sm font-medium ${weekPlan[day].type === type ? 'bg-blue-600 text-white' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}`}>
+                        {getSessionTypeLabel(type)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              <button onClick={goPrev} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm sm:text-base">
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <button onClick={goNext} className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm sm:text-base">
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'planning' && planningSubStep === 'muscles' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Étape 2 : Muscles</h2>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {days.map(day => (
+                <div key={day} className="bg-slate-800 rounded-xl p-2 sm:p-3 border border-slate-700 flex-shrink-0 w-40 sm:w-44">
+                  <h3 className="text-white font-bold mb-1 capitalize text-xs sm:text-sm text-center">{day}</h3>
+                  <p className="text-xs text-slate-400 mb-2 text-center">{getSessionTypeLabel(weekPlan[day].type)}</p>
+                  {weekPlan[day].type && weekPlan[day].type !== 'rest' && (
+                    <div className="space-y-1">
+                      {getAvailableMusclesForType(weekPlan[day].type).map(muscle => (
+                        <label key={muscle.name} className="flex items-center gap-1.5 p-1.5 bg-slate-700 rounded cursor-pointer hover:bg-slate-600">
+                          <input type="checkbox" checked={weekPlan[day].muscles.includes(muscle.name)} onChange={() => toggleDayMuscle(day, muscle.name)} className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                          <span className="text-white text-xs">{muscle.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              <button onClick={goPrev} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm sm:text-base">
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <button onClick={goNext} className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm sm:text-base">
+                Suivant <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'planning' && planningSubStep === 'exercises' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Étape 3 : Exercices</h2>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-4">
+              {days.filter(day => weekPlan[day].muscles.length > 0).map(day => (
+                <div key={day} className="bg-slate-800 rounded-xl p-2 sm:p-3 border border-slate-700 flex-shrink-0 w-48 sm:w-52">
+                  <h3 className="text-white font-bold mb-2 capitalize text-xs sm:text-sm text-center">{day}</h3>
+                  <div className="space-y-2">
+                    {weekPlan[day].muscles.map(muscleName => {
+                      const muscleExercises = exercises.filter(ex => ex.muscle === muscleName);
+                      return (
+                        <div key={muscleName} className="space-y-1">
+                          <p className="text-xs font-bold text-blue-400">{muscleName}</p>
+                          {muscleExercises.map(ex => (
+                            <label key={ex.id} className="flex items-center gap-1.5 p-1.5 bg-slate-700 rounded cursor-pointer hover:bg-slate-600">
+                              <input type="checkbox" checked={weekPlan[day].exercises.includes(ex.id)} onChange={() => toggleDayExercise(day, ex.id)} className="w-3 h-3 flex-shrink-0" />
+                              <span className="text-white text-xs flex-1">{ex.name}</span>
+                              <button onClick={(e) => { e.preventDefault(); toggleDayExercisePriority(day, ex.id); }}>
+                                <Star className={`w-3.5 h-3.5 ${weekPlan[day].priorityExercises && weekPlan[day].priorityExercises.includes(ex.id) ? 'fill-yellow-400 text-yellow-400' : 'text-slate-400'}`} />
+                              </button>
+                            </label>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              <button onClick={goPrev} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm sm:text-base">
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <button onClick={goNext} className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm sm:text-base">
+                Récap <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'planning' && planningSubStep === 'recap' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Récapitulatif</h2>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3">Volume par muscle</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
+                {[...muscles.maintenance, ...muscles.modere, ...muscles.priorite].map(muscle => {
+                  const result = calculateTotalSeries(muscle);
+                  return (
+                    <div key={muscle.name} className="bg-slate-700 rounded p-2 sm:p-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white text-xs sm:text-sm font-medium">{muscle.name}</span>
+                        <span className={`text-xs font-bold ${result.totalSeriesWeek >= result.targetVolume ? 'text-green-400' : 'text-red-400'}`}>
+                          {result.totalSeriesWeek}/{result.targetVolume}
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-600 rounded-full h-1.5 sm:h-2">
+                        <div className={`h-1.5 sm:h-2 rounded-full ${result.totalSeriesWeek >= result.targetVolume ? 'bg-green-500' : 'bg-red-500'}`} style={{ width: `${Math.min((result.totalSeriesWeek / result.targetVolume) * 100, 100)}%` }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-4 justify-center">
+              {days.map(day => {
+                const dayExercises = weekPlan[day].exercises.map(exId => exercises.find(e => e.id === exId)).filter(ex => ex);
+                const exercisesByMuscle = {};
+                dayExercises.forEach(ex => {
+                  if (!exercisesByMuscle[ex.muscle]) exercisesByMuscle[ex.muscle] = [];
+                  exercisesByMuscle[ex.muscle].push(ex);
+                });
+                return (
+                  <div key={day} className="bg-slate-800 rounded-xl p-1.5 sm:p-2 border border-slate-700 flex-shrink-0 w-36 sm:w-44">
+                    <h3 className="text-sm sm:text-base font-bold text-white mb-1.5 sm:mb-2 capitalize text-center">{day}</h3>
+                    {weekPlan[day].type === 'rest' ? (
+                      <p className="text-slate-400 text-center text-xs">Repos</p>
+                    ) : weekPlan[day].type ? (
+                      <div>
+                        <p className="text-xs text-blue-400 mb-1.5 sm:mb-2 text-center">{getSessionTypeLabel(weekPlan[day].type)}</p>
+                        {Object.keys(exercisesByMuscle).length > 0 ? (
+                          <div className="space-y-1">
+                            {Object.entries(exercisesByMuscle).map(([muscleName, muscleExs]) => (
+                              <div key={muscleName} className="space-y-0.5">
+                                <p className="text-xs font-bold text-blue-400">{muscleName}</p>
+                                {muscleExs.map(ex => {
+                                  const totalSeries = calculateExerciseSeries(ex, day);
+                                  const manualBonus = ex.bonusSeriesByDay[day] || 0;
+                                  return (
+                                    <div key={ex.id} className="bg-slate-700 rounded p-1">
+                                      <div className="flex items-center justify-between gap-1">
+                                        <span className="text-white text-xs flex-1">{ex.name}</span>
+                                      </div>
+                                      {ex.series > 0 && (
+                                        <div className="flex items-center gap-0.5 mt-0.5">
+                                          <p className="text-xs text-green-400 flex-1">{totalSeries} séries</p>
+                                          <button onClick={() => adjustBonusSeries(ex.id, day, 1)} className="bg-green-600 text-white text-xs px-1 py-0.5 rounded">+</button>
+                                          {manualBonus > 0 && (
+                                            <>
+                                              <button onClick={() => adjustBonusSeries(ex.id, day, -1)} className="bg-red-600 text-white text-xs px-1 py-0.5 rounded">-</button>
+                                              <button onClick={() => resetBonusSeries(ex.id, day)} className="bg-slate-600 text-white text-xs px-1 py-0.5 rounded">×</button>
+                                            </>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 text-center">Aucun</p>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-slate-400 text-center text-xs">Non planifié</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex justify-between mt-3 sm:mt-4">
+              <button onClick={goPrev} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm sm:text-base">
+                <ChevronLeft className="w-4 h-4" /> Précédent
+              </button>
+              <div className="relative">
+                <button 
+                  onClick={() => setShowExportMenu(!showExportMenu)} 
+                  className="bg-blue-600 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 text-sm sm:text-base"
+                >
+                  <Calendar className="w-4 h-4" /> Exporter
+                </button>
+                {showExportMenu && (
+                  <div ref={exportMenuRef} className="absolute right-0 mt-2 w-56 bg-slate-800 border border-slate-700 rounded-lg shadow-xl z-50 overflow-hidden">
+                    <button 
+                      onClick={exportToText}
+                      className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 flex items-center gap-3 border-b border-slate-700"
+                    >
+                      <span className="text-xl">📄</span>
+                      <div>
+                        <div className="font-medium text-sm">Texte (.txt)</div>
+                        <div className="text-xs text-slate-400">Format texte simple</div>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={exportToHTML}
+                      className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 flex items-center gap-3 border-b border-slate-700"
+                    >
+                      <span className="text-xl">📑</span>
+                      <div>
+                        <div className="font-medium text-sm">PDF</div>
+                        <div className="text-xs text-slate-400">Fichier imprimable</div>
+                      </div>
+                    </button>
+                    <button 
+                      onClick={exportToCalendar}
+                      className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 flex items-center gap-3"
+                    >
+                      <span className="text-xl">📅</span>
+                      <div>
+                        <div className="font-medium text-sm">Calendrier (.ics)</div>
+                        <div className="text-xs text-slate-400">Apple & Google</div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 'exercises' && (
+          <div className="space-y-3 sm:space-y-4">
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h2 className="text-lg sm:text-xl font-bold text-white">Gestion des exercices</h2>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3">Ajouter un exercice</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+                <input type="text" placeholder="Nom" value={newExercise.name} onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })} className="bg-slate-700 text-white p-2 rounded border border-slate-600 focus:border-blue-500 focus:outline-none text-sm" />
+                <select value={newExercise.muscle} onChange={(e) => setNewExercise({ ...newExercise, muscle: e.target.value })} className="bg-slate-700 text-white p-2 rounded border border-slate-600 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="">Muscle 1</option>
+                  {[...muscles.available, ...muscles.maintenance, ...muscles.modere, ...muscles.priorite].map(m => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+                <select value={newExercise.muscle2} onChange={(e) => setNewExercise({ ...newExercise, muscle2: e.target.value })} className="bg-slate-700 text-white p-2 rounded border border-slate-600 focus:border-blue-500 focus:outline-none text-sm" disabled={!newExercise.muscle}>
+                  <option value="">Muscle 2 (opt.)</option>
+                  {[...muscles.available, ...muscles.maintenance, ...muscles.modere, ...muscles.priorite].filter(m => m.name !== newExercise.muscle).map(m => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))}
+                </select>
+                <select value={newExercise.split} onChange={(e) => setNewExercise({ ...newExercise, split: e.target.value })} className="bg-slate-700 text-white p-2 rounded border border-slate-600 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="upper">Upper</option>
+                  <option value="lower">Lower</option>
+                </select>
+                <button onClick={addExercise} disabled={!newExercise.name || !newExercise.muscle} className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:bg-slate-600 flex items-center justify-center gap-2 text-sm">
+                  <Plus className="w-4 h-4" /> Ajouter
+                </button>
+              </div>
+            </div>
+            <div className="bg-slate-800 rounded-xl p-3 sm:p-4 border border-slate-700">
+              <h3 className="text-base sm:text-lg font-bold text-white mb-3">Liste des exercices</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
+                {exercises.map(ex => (
+                  <div key={ex.id} className="bg-slate-700 rounded p-2 sm:p-3 border border-slate-600 hover:border-slate-500">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-medium text-sm">{ex.name}</span>
+                      <button onClick={() => deleteExercise(ex.id)} className="text-red-400 hover:text-red-300">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400">
+                      {ex.muscle}
+                      {ex.muscle2 && <span> + {ex.muscle2}</span>}
+                      <span> • </span>
+                      {ex.split === 'upper' ? 'Upper' : 'Lower'}
+                    </p>
+                    {ex.series > 0 && <span className="text-xs text-green-400">{ex.series} séries</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="flex justify-start mt-3 sm:mt-4">
+              <button onClick={() => { setStep('planning'); setPlanningSubStep('recap'); }} className="bg-slate-700 text-white px-4 sm:px-6 py-2 rounded-lg flex items-center gap-2 hover:bg-slate-600 text-sm">
+                <ChevronLeft className="w-4 h-4" /> Retour
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<WorkoutPlannerApp />);
+  </script>
+  
+  <!-- Service Worker -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(registration => console.log('SW registered'))
+          .catch(err => console.log('SW registration failed'));
+      });
+    }
+  </script>
+</body>
+</html>
